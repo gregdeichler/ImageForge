@@ -41,12 +41,44 @@ final class BatchQueueModel {
         advanceSelection(after: index)
     }
 
-    func markSelectedCompleted(outputURL: URL? = nil) {
-        guard let selectedJobID,
-              let index = manifest?.jobs.firstIndex(where: { $0.id == selectedJobID }) else { return }
-        manifest?.jobs[index].status = .completed
+    func beginAppleGeneration(for jobID: String) {
+        guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }) else { return }
+        manifest?.jobs[index].status = .generating
         manifest?.jobs[index].errorMessage = nil
-        advanceSelection(after: index)
+        lastError = nil
+        isRunning = true
+    }
+
+    @discardableResult
+    func acceptAppleGeneratedImage(_ temporaryURL: URL, for jobID: String) -> URL? {
+        guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }),
+              let manifest else { return nil }
+
+        do {
+            let job = manifest.jobs[index]
+            let destination = try outputWriter.save(
+                GeneratedImage(temporaryURL: temporaryURL),
+                for: job,
+                manifest: manifest
+            )
+            self.manifest?.jobs[index].status = .completed
+            self.manifest?.jobs[index].errorMessage = nil
+            isRunning = false
+            advanceSelection(after: index)
+            return destination
+        } catch {
+            self.manifest?.jobs[index].status = .failed
+            self.manifest?.jobs[index].errorMessage = error.localizedDescription
+            lastError = error.localizedDescription
+            isRunning = false
+            return nil
+        }
+    }
+
+    func cancelAppleGeneration(for jobID: String) {
+        guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }) else { return }
+        manifest?.jobs[index].status = .ready
+        isRunning = false
     }
 
     func generateSelectedWithMockProvider() async {
