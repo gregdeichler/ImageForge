@@ -3,12 +3,23 @@ import Testing
 @testable import ImageForge
 
 @MainActor
-@Test func cancellingAppleGenerationReturnsJobToReady() {
-    let queue = BatchQueueModel()
+private func makeQueue(in root: URL) -> BatchQueueModel {
+    let stateURL = root.appendingPathComponent("session.json")
+    return BatchQueueModel(persistenceStore: BatchPersistenceStore(stateURL: stateURL))
+}
+
+@MainActor
+@Test func cancellingAppleGenerationReturnsJobToReady() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ImageForgeTests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let queue = makeQueue(in: root)
     queue.manifest = BatchManifest(
         schemaVersion: 1,
         project: "Test",
-        outputDirectory: FileManager.default.temporaryDirectory.path,
+        outputDirectory: root.path,
         jobs: [
             ImageJob(id: "one", filename: "one.png", prompt: "one", provider: .apple, status: .ready)
         ]
@@ -36,7 +47,7 @@ import Testing
 
     let output = root.appendingPathComponent("output", isDirectory: true)
 
-    let queue = BatchQueueModel()
+    let queue = makeQueue(in: root)
     queue.manifest = BatchManifest(
         schemaVersion: 1,
         project: "Test",
@@ -79,8 +90,7 @@ import Testing
     let data = try JSONEncoder().encode(manifest)
     try data.write(to: manifestURL)
 
-    let stateURL = root.appendingPathComponent("session.json")
-    let queue = BatchQueueModel(persistenceStore: BatchPersistenceStore(stateURL: stateURL))
+    let queue = makeQueue(in: root)
     try queue.loadManifest(from: manifestURL)
 
     #expect(queue.selectedJobID == "next")
@@ -111,8 +121,7 @@ import Testing
     )
     try JSONEncoder().encode(manifest).write(to: manifestURL)
 
-    let stateURL = root.appendingPathComponent("session.json")
-    let queue = BatchQueueModel(persistenceStore: BatchPersistenceStore(stateURL: stateURL))
+    let queue = makeQueue(in: root)
     try queue.loadManifest(from: manifestURL)
 
     #expect(queue.referenceImageURL(for: queue.jobs[0]) == references.appendingPathComponent("master.png"))
