@@ -34,6 +34,12 @@ struct ContentView: View {
             .navigationTitle(queue.manifest?.project ?? "ImageForge")
             .toolbar {
                 Button("Open Batch") { importerPresented = true }
+                if queue.manifest != nil {
+                    Button("Clear Batch", role: .destructive) {
+                        queue.clearBatch()
+                    }
+                    .disabled(queue.isRunning)
+                }
             }
         } detail: {
             detail
@@ -143,8 +149,8 @@ struct ContentView: View {
             .padding(24)
         } else {
             ContentUnavailableView(
-                "Batch Complete",
-                systemImage: "checkmark.circle",
+                queue.manifest == nil ? "No Batch Loaded" : "Batch Complete",
+                systemImage: queue.manifest == nil ? "photo.stack" : "checkmark.circle",
                 description: Text(queue.manifest == nil
                     ? "Open a JSON manifest to start an image queue."
                     : "There are no remaining image jobs.")
