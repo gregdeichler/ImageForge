@@ -1,10 +1,23 @@
 import Foundation
 
 struct BatchSession: Codable, Sendable {
-    var schemaVersion = 1
+    static let currentSchemaVersion = 1
+
+    var schemaVersion = currentSchemaVersion
     var manifest: BatchManifest
     var selectedJobID: String?
     var sourcePath: String?
+}
+
+enum BatchPersistenceError: LocalizedError {
+    case unsupportedSchemaVersion(Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .unsupportedSchemaVersion(let version):
+            "Persisted batch schema version \(version) is not supported."
+        }
+    }
 }
 
 struct BatchPersistenceStore: Sendable {
@@ -19,13 +32,20 @@ struct BatchPersistenceStore: Sendable {
     func load() throws -> BatchSession? {
         guard FileManager.default.fileExists(atPath: stateURL.path) else { return nil }
         let data = try Data(contentsOf: stateURL)
-        return try JSONDecoder().decode(BatchSession.self, from: data)
+        let session = try JSONDecoder().decode(BatchSession.self, from: data)
+        guard session.schemaVersion == BatchSession.currentSchemaVersion else {
+            throw BatchPersistenceError.unsupportedSchemaVersion(session.schemaVersion)
+        }
+        try session.manifest.validate()
+        return session
     }
 
     func save(_ session: BatchSession) throws {
         let directory = stateURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let data = try JSONEncoder().encode(session)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(session)
         try data.write(to: stateURL, options: .atomic)
     }
 

@@ -1,16 +1,10 @@
 import Foundation
 
-/// Golden Gate implementation target.
+/// Descriptor for Apple's interactive Image Playground path.
 ///
-/// This provider is deliberately isolated from the queue engine. The next implementation
-/// step is to wire the current Image Playground presentation API into SwiftUI and return
-/// the accepted result URL to the queue coordinator.
-struct AppleImagePlaygroundProvider: ImageGenerationProvider {
+/// The actual Image Playground sheet must be presented from SwiftUI. ImageForge therefore
+/// coordinates Apple generation in ContentView/BatchQueueModel rather than pretending it
+/// is an unattended ImageGenerationProvider.
+struct AppleImagePlaygroundProvider: Sendable {
     let id: ImageJob.Provider = .apple
-
-    func generate(job: ImageJob) async throws -> GeneratedImage {
-        throw ImageGenerationError.notImplemented(
-            "Apple Image Playground integration is the next implementation milestone."
-        )
-    }
 }

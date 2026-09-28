@@ -58,3 +58,62 @@ import Testing
     #expect(queue.selectedJobID == "two")
     #expect(!queue.isRunning)
 }
+
+@MainActor
+@Test func loadingManifestSelectsFirstActionableJobNotCompletedJob() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ImageForgeManifestSelection-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let manifestURL = root.appendingPathComponent("batch.json")
+    let manifest = BatchManifest(
+        schemaVersion: 2,
+        project: "Selection",
+        outputDirectory: root.path,
+        jobs: [
+            ImageJob(id: "done", filename: "done.png", prompt: "done", status: .completed),
+            ImageJob(id: "next", filename: "next.png", prompt: "next", status: .pending)
+        ]
+    )
+    let data = try JSONEncoder().encode(manifest)
+    try data.write(to: manifestURL)
+
+    let stateURL = root.appendingPathComponent("session.json")
+    let queue = BatchQueueModel(persistenceStore: BatchPersistenceStore(stateURL: stateURL))
+    try queue.loadManifest(from: manifestURL)
+
+    #expect(queue.selectedJobID == "next")
+    #expect(queue.jobs[1].status == .ready)
+}
+
+@MainActor
+@Test func resolvesRelativeReferenceImageBesideManifest() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ImageForgeReference-\(UUID().uuidString)", isDirectory: true)
+    let references = root.appendingPathComponent("references", isDirectory: true)
+    try FileManager.default.createDirectory(at: references, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let manifestURL = root.appendingPathComponent("batch.json")
+    let manifest = BatchManifest(
+        schemaVersion: 2,
+        project: "Reference",
+        outputDirectory: root.path,
+        jobs: [
+            ImageJob(
+                id: "one",
+                filename: "one.png",
+                prompt: "one",
+                referenceImage: "references/master.png"
+            )
+        ]
+    )
+    try JSONEncoder().encode(manifest).write(to: manifestURL)
+
+    let stateURL = root.appendingPathComponent("session.json")
+    let queue = BatchQueueModel(persistenceStore: BatchPersistenceStore(stateURL: stateURL))
+    try queue.loadManifest(from: manifestURL)
+
+    #expect(queue.referenceImageURL(for: queue.jobs[0]) == references.appendingPathComponent("master.png"))
+}

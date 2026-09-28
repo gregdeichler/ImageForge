@@ -1,34 +1,79 @@
 {
-  "schemaVersion": 1,
-  "project": "AFF Logos",
-  "outputDirectory": "~/Pictures/AFF",
+  "schemaVersion": 2,
+  "project": "AFF Logos — Federal East Primary Masters",
+  "outputDirectory": "~/Pictures/AFF/primary",
   "jobs": [
     {
-      "id": "albany-empire",
-      "filename": "albany-empire.png",
-      "prompt": "Professional American football logo for the Albany Empire. Established major-league identity, historically grounded, navy and gold, strong single-focus symbol, no mockup.",
-      "width": 1024,
-      "height": 1024,
+      "id": "new-york-towers-primary",
+      "team": "New York Towers",
+      "assetType": "logo",
+      "variant": "primary-full-color",
+      "filename": "new-york-towers-primary.png",
+      "prompt": "Professional major-league American football primary logo for the New York Towers. Exact concept: Crowned Tower — one bold architectural tower topped by a restrained crown as the sole dominant object. Palette: Charcoal #25282B, Verdigris #4F9185, Limestone #D9CFB8, Black #111315. Established, prestigious, historically grounded national sports identity. Flat vector-style shapes, strong silhouette, minimal internal detail, readable at helmet and scorebug size. Centered isolated mark on transparent or plain neutral background. Do not reinterpret the concept.",
+      "negativePrompt": "text, letters, wordmarks, footballs, stars, shields, extra objects, gradients, chrome, 3D, photorealism, mascot scenes, mockups, uniforms, helmets, presentation boards, busy backgrounds",
+      "width": 2048,
+      "height": 2048,
       "provider": "apple",
-      "status": "pending"
+      "status": "pending",
+      "tags": [
+        "aff",
+        "federal-east",
+        "primary"
+      ]
     },
     {
-      "id": "buffalo-blizzard",
-      "filename": "buffalo-blizzard.png",
-      "prompt": "Professional American football logo for the Buffalo Blizzard. Charging buffalo shaped by wind and snow, royal blue and silver, mature national sports branding, no mockup.",
-      "width": 1024,
-      "height": 1024,
+      "id": "boston-minutemen-primary",
+      "team": "Boston Minutemen",
+      "assetType": "logo",
+      "variant": "primary-full-color",
+      "filename": "boston-minutemen-primary.png",
+      "prompt": "Professional major-league American football primary logo for the Boston Minutemen. Exact concept: Tricorn — one bold colonial tricorn hat as the sole dominant object, abstracted into a strong athletic silhouette without a human mascot. Palette: Brick #9D4037, Midnight #1D2938, Parchment #E9DDC2, Cream #F5F0E4. Established, prestigious, historically grounded national sports identity. Flat vector-style shapes, minimal internal detail, readable at helmet and scorebug size. Centered isolated mark on transparent or plain neutral background. Do not reinterpret the concept.",
+      "negativePrompt": "text, letters, wordmarks, footballs, stars, shields, extra objects, gradients, chrome, 3D, photorealism, colonial soldier character, mascot face, mockups, uniforms, helmets, presentation boards, busy backgrounds",
+      "width": 2048,
+      "height": 2048,
       "provider": "apple",
-      "status": "pending"
+      "status": "pending",
+      "tags": [
+        "aff",
+        "federal-east",
+        "primary"
+      ]
     },
     {
-      "id": "philadelphia-liberty",
-      "filename": "philadelphia-liberty.png",
-      "prompt": "Professional American football logo for Philadelphia with a prominent bell as the single central symbol, established major-league feel, bold but traditional, no mockup.",
-      "width": 1024,
-      "height": 1024,
+      "id": "philadelphia-independence-primary",
+      "team": "Philadelphia Independence",
+      "assetType": "logo",
+      "variant": "primary-full-color",
+      "filename": "philadelphia-independence-primary.png",
+      "prompt": "Professional major-league American football primary logo for the Philadelphia Independence. Exact concept: Broken Bell — one bold cracked Liberty-style bell as the sole dominant object. Palette: Aged Brass #B38A3F, Indigo #28385C, Parchment #EFE2C4, Charcoal #282B30. Established, prestigious, historically grounded national sports identity. Strong silhouette, flat vector-style shapes, minimal internal detail, readable at helmet and scorebug size. Centered isolated mark on transparent or plain neutral background. Do not reinterpret the concept.",
+      "negativePrompt": "text, letters, wordmarks, footballs, stars, shields, extra objects, gradients, chrome, 3D, photorealism, mascot characters, mockups, uniforms, helmets, presentation boards, busy backgrounds",
+      "width": 2048,
+      "height": 2048,
       "provider": "apple",
-      "status": "pending"
+      "status": "pending",
+      "tags": [
+        "aff",
+        "federal-east",
+        "primary"
+      ]
+    },
+    {
+      "id": "baltimore-admirals-primary",
+      "team": "Baltimore Admirals",
+      "assetType": "logo",
+      "variant": "primary-full-color",
+      "filename": "baltimore-admirals-primary.png",
+      "prompt": "Professional major-league American football primary logo for the Baltimore Admirals. Exact concept: Command Anchor — one heavy naval anchor as the sole dominant object, shaped with authoritative command presence and clean harbor-industrial geometry. Palette: Harbor Navy #173D4D, Copper #B76B45, Naval Cream #E8DEC8, Black #1D2326. Established, prestigious, historically grounded national sports identity. Flat vector-style shapes, strong silhouette, minimal internal detail, readable at helmet and scorebug size. Centered isolated mark on transparent or plain neutral background. Do not reinterpret the concept.",
+      "negativePrompt": "text, letters, wordmarks, footballs, stars, shields, ships, ropes, extra objects, gradients, chrome, 3D, photorealism, admiral character, mascot face, mockups, uniforms, helmets, presentation boards, busy backgrounds",
+      "width": 2048,
+      "height": 2048,
+      "provider": "apple",
+      "status": "pending",
+      "tags": [
+        "aff",
+        "federal-east",
+        "primary"
+      ]
     }
   ]
 }

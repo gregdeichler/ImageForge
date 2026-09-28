@@ -25,19 +25,58 @@ final class BatchQueueModel {
     }
 
     var currentJob: ImageJob? {
-        if let selectedJobID {
-            return jobs.first { $0.id == selectedJobID }
+        if let selectedJobID,
+           let selected = jobs.first(where: { $0.id == selectedJobID }) {
+            return selected
         }
-        return jobs.first { [.pending, .ready, .failed].contains($0.status) }
+        return jobs.first(where: isActionable)
+    }
+
+    func canGenerate(_ job: ImageJob) -> Bool {
+        !isRunning && isActionable(job)
+    }
+
+    func canSkip(_ job: ImageJob) -> Bool {
+        !isRunning && isActionable(job)
+    }
+
+    func referenceImageURL(for job: ImageJob) -> URL? {
+        guard let rawPath = job.referenceImage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawPath.isEmpty else {
+            return nil
+        }
+
+        let expanded = NSString(string: rawPath).expandingTildeInPath
+        if expanded.hasPrefix("/") {
+            return URL(fileURLWithPath: expanded).standardizedFileURL
+        }
+
+        guard let sourcePath else { return nil }
+        let manifestDirectory = URL(fileURLWithPath: sourcePath)
+            .deletingLastPathComponent()
+        return manifestDirectory
+            .appendingPathComponent(rawPath)
+            .standardizedFileURL
     }
 
     func loadManifest(from url: URL) throws {
         var loaded = try BatchManifest.load(from: url)
-        if let first = loaded.jobs.firstIndex(where: { $0.status == .pending }) {
-            loaded.jobs[first].status = .ready
+
+        // Imported manifests are declarative. A stale "generating" state cannot be resumed.
+        for index in loaded.jobs.indices where loaded.jobs[index].status == .generating {
+            loaded.jobs[index].status = .ready
         }
+
+        if let first = loaded.jobs.firstIndex(where: isActionable) {
+            if loaded.jobs[first].status == .pending {
+                loaded.jobs[first].status = .ready
+            }
+            selectedJobID = loaded.jobs[first].id
+        } else {
+            selectedJobID = nil
+        }
+
         manifest = loaded
-        selectedJobID = loaded.jobs.first?.id
         sourcePath = url.path
         lastError = nil
         persist()
@@ -54,13 +93,21 @@ final class BatchQueueModel {
 
     func skipSelected() {
         guard let selectedJobID,
-              let index = manifest?.jobs.firstIndex(where: { $0.id == selectedJobID }) else { return }
+              let index = manifest?.jobs.firstIndex(where: { $0.id == selectedJobID }),
+              let job = manifest?.jobs[index],
+              isActionable(job) else { return }
+
         manifest?.jobs[index].status = .skipped
+        manifest?.jobs[index].errorMessage = nil
         advanceSelection(after: index)
     }
 
     func beginAppleGeneration(for jobID: String) {
-        guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }) else { return }
+        guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }),
+              let job = manifest?.jobs[index],
+              job.provider == .apple,
+              isActionable(job) else { return }
+
         manifest?.jobs[index].status = .generating
         manifest?.jobs[index].errorMessage = nil
         lastError = nil
@@ -71,6 +118,7 @@ final class BatchQueueModel {
     @discardableResult
     func acceptAppleGeneratedImage(_ temporaryURL: URL, for jobID: String) -> URL? {
         guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }),
+              manifest?.jobs[index].status == .generating,
               let manifest else { return nil }
 
         do {
@@ -96,7 +144,9 @@ final class BatchQueueModel {
     }
 
     func cancelAppleGeneration(for jobID: String) {
-        guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }) else { return }
+        guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }),
+              manifest?.jobs[index].status == .generating else { return }
+
         manifest?.jobs[index].status = .ready
         isRunning = false
         persist()
@@ -105,6 +155,8 @@ final class BatchQueueModel {
     func generateSelectedWithMockProvider() async {
         guard let selectedJobID,
               let index = manifest?.jobs.firstIndex(where: { $0.id == selectedJobID }),
+              let selected = manifest?.jobs[index],
+              isActionable(selected),
               let manifest else { return }
 
         isRunning = true
@@ -140,12 +192,19 @@ final class BatchQueueModel {
             sourcePath = session.sourcePath
 
             if let selected = session.selectedJobID,
-               session.manifest.jobs.contains(where: { $0.id == selected && $0.status != .completed && $0.status != .skipped }) {
+               let index = session.manifest.jobs.firstIndex(where: { $0.id == selected }),
+               isActionable(session.manifest.jobs[index]) {
                 selectedJobID = selected
+                if session.manifest.jobs[index].status == .pending {
+                    manifest?.jobs[index].status = .ready
+                }
+            } else if let first = session.manifest.jobs.firstIndex(where: isActionable) {
+                selectedJobID = session.manifest.jobs[first].id
+                if session.manifest.jobs[first].status == .pending {
+                    manifest?.jobs[first].status = .ready
+                }
             } else {
-                selectedJobID = session.manifest.jobs.first {
-                    [.pending, .ready, .failed].contains($0.status)
-                }?.id
+                selectedJobID = nil
             }
 
             persist()
@@ -173,9 +232,12 @@ final class BatchQueueModel {
 
     private func advanceSelection(after index: Int) {
         guard var manifest else { return }
-        let nextIndex = manifest.jobs.indices.dropFirst(index + 1).first {
-            [.pending, .ready, .failed].contains(manifest.jobs[$0].status)
-        }
+
+        let trailing = manifest.jobs.indices.dropFirst(index + 1)
+        let leading = manifest.jobs.indices.prefix(index)
+        let nextIndex = trailing.first(where: { isActionable(manifest.jobs[$0]) })
+            ?? leading.first(where: { isActionable(manifest.jobs[$0]) })
+
         if let nextIndex {
             if manifest.jobs[nextIndex].status == .pending {
                 manifest.jobs[nextIndex].status = .ready
@@ -187,5 +249,9 @@ final class BatchQueueModel {
             selectedJobID = nil
         }
         persist()
+    }
+
+    private func isActionable(_ job: ImageJob) -> Bool {
+        [.pending, .ready, .failed].contains(job.status)
     }
 }

@@ -23,7 +23,7 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(job.filename)
                                 .lineLimit(1)
-                            Text(job.id)
+                            Text(job.team ?? job.id)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -60,8 +60,13 @@ struct ContentView: View {
         if let job = queue.currentJob {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(job.filename).font(.title2).bold()
+                        if let team = job.team {
+                            Text(team)
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
                         if let manifest = queue.manifest {
                             Text("\(queue.completedCount) / \(manifest.jobs.count) complete")
                                 .foregroundStyle(.secondary)
@@ -74,14 +79,44 @@ struct ContentView: View {
                         .background(.quaternary, in: Capsule())
                 }
 
+                if job.assetType != nil || job.variant != nil || job.width != nil {
+                    HStack(spacing: 16) {
+                        if let assetType = job.assetType {
+                            Label(assetType, systemImage: "photo")
+                        }
+                        if let variant = job.variant {
+                            Label(variant, systemImage: "square.stack.3d.up")
+                        }
+                        if let width = job.width, let height = job.height {
+                            Label("\(width) × \(height)", systemImage: "aspectratio")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+
                 GroupBox("Prompt") {
                     ScrollView {
-                        Text(job.prompt)
+                        Text(job.generationPrompt)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
                     }
                     .frame(minHeight: 220)
+                }
+
+                if let referenceImage = job.referenceImage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "photo.on.rectangle")
+                        Text("Reference: \(referenceImage)")
+                            .textSelection(.enabled)
+                        if let url = queue.referenceImageURL(for: job),
+                           !FileManager.default.fileExists(atPath: url.path) {
+                            Text("Missing")
+                                .foregroundStyle(.red)
+                        }
+                    }
+                    .font(.caption)
                 }
 
                 if let error = job.errorMessage ?? queue.lastError {
@@ -92,14 +127,17 @@ struct ContentView: View {
 
                 HStack {
                     Button("Skip") { queue.skipSelected() }
-                        .disabled(queue.isRunning)
+                        .disabled(!queue.canSkip(job))
                     Spacer()
-                    Button("Test Queue With Mock") {
+
+                    #if DEBUG
+                    Button("Test With Mock") {
                         Task { await queue.generateSelectedWithMockProvider() }
                     }
-                    .disabled(queue.isRunning)
+                    .disabled(!queue.canGenerate(job))
+                    #endif
 
-                    appleGenerateButton(for: job)
+                    providerAction(for: job)
                 }
             }
             .padding(24)
@@ -115,36 +153,68 @@ struct ContentView: View {
     }
 
     @ViewBuilder
+    private func providerAction(for job: ImageJob) -> some View {
+        switch job.provider {
+        case .apple:
+            appleGenerateButton(for: job)
+        case .mock:
+            Button("Generate With Mock") {
+                Task { await queue.generateSelectedWithMockProvider() }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!queue.canGenerate(job))
+        case .local:
+            Button("Local provider not implemented") {}
+                .disabled(true)
+        }
+    }
+
+    @ViewBuilder
     private func appleGenerateButton(for job: ImageJob) -> some View {
         #if canImport(ImagePlayground)
         if #available(macOS 27.0, *) {
-            Button("Generate in Image Playground") {
-                playgroundJobID = job.id
-                queue.beginAppleGeneration(for: job.id)
-                playgroundPresented = true
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(queue.isRunning)
-            .imagePlaygroundSheet(
-                isPresented: $playgroundPresented,
-                concept: job.prompt,
-                sourceImage: nil,
-                onCompletion: { url in
-                    let completedJobID = playgroundJobID ?? job.id
-                    _ = queue.acceptAppleGeneratedImage(url, for: completedJobID)
-                    playgroundJobID = nil
-                },
-                onCancellation: {
-                    let cancelledJobID = playgroundJobID ?? job.id
-                    queue.cancelAppleGeneration(for: cancelledJobID)
-                    playgroundJobID = nil
+            if let referenceURL = queue.referenceImageURL(for: job) {
+                if FileManager.default.fileExists(atPath: referenceURL.path) {
+                    Button("Generate in Image Playground") {
+                        beginPlayground(for: job)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!queue.canGenerate(job))
+                    .imagePlaygroundSheet(
+                        isPresented: $playgroundPresented,
+                        concept: job.generationPrompt,
+                        sourceImageURL: referenceURL,
+                        onCompletion: { url in completePlayground(url, fallbackJobID: job.id) },
+                        onCancellation: { cancelPlayground(fallbackJobID: job.id) }
+                    )
+                    .imagePlaygroundOptions(playgroundOptions(for: job))
+                    .imagePlaygroundGenerationStyle(
+                        .externalProvider,
+                        in: [.externalProvider]
+                    )
+                } else {
+                    Button("Reference image missing") {}
+                        .disabled(true)
                 }
-            )
-            .imagePlaygroundOptions(playgroundOptions(for: job))
-            .imagePlaygroundGenerationStyle(
-                .externalProvider,
-                in: [.externalProvider]
-            )
+            } else {
+                Button("Generate in Image Playground") {
+                    beginPlayground(for: job)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!queue.canGenerate(job))
+                .imagePlaygroundSheet(
+                    isPresented: $playgroundPresented,
+                    concept: job.generationPrompt,
+                    sourceImage: nil,
+                    onCompletion: { url in completePlayground(url, fallbackJobID: job.id) },
+                    onCancellation: { cancelPlayground(fallbackJobID: job.id) }
+                )
+                .imagePlaygroundOptions(playgroundOptions(for: job))
+                .imagePlaygroundGenerationStyle(
+                    .externalProvider,
+                    in: [.externalProvider]
+                )
+            }
         } else {
             Button("Requires macOS 27") {}
                 .disabled(true)
@@ -153,6 +223,24 @@ struct ContentView: View {
         Button("Image Playground unavailable") {}
             .disabled(true)
         #endif
+    }
+
+    private func beginPlayground(for job: ImageJob) {
+        playgroundJobID = job.id
+        queue.beginAppleGeneration(for: job.id)
+        playgroundPresented = true
+    }
+
+    private func completePlayground(_ url: URL, fallbackJobID: String) {
+        let completedJobID = playgroundJobID ?? fallbackJobID
+        _ = queue.acceptAppleGeneratedImage(url, for: completedJobID)
+        playgroundJobID = nil
+    }
+
+    private func cancelPlayground(fallbackJobID: String) {
+        let cancelledJobID = playgroundJobID ?? fallbackJobID
+        queue.cancelAppleGeneration(for: cancelledJobID)
+        playgroundJobID = nil
     }
 
     #if canImport(ImagePlayground)
