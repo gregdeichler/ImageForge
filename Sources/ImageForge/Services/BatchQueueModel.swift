@@ -10,6 +10,13 @@ final class BatchQueueModel {
     var lastError: String?
 
     private let outputWriter = OutputWriter()
+    private let persistenceStore: BatchPersistenceStore
+    private var sourcePath: String?
+
+    init(persistenceStore: BatchPersistenceStore = .live) {
+        self.persistenceStore = persistenceStore
+        restorePersistedSession()
+    }
 
     var jobs: [ImageJob] { manifest?.jobs ?? [] }
 
@@ -31,7 +38,18 @@ final class BatchQueueModel {
         }
         manifest = loaded
         selectedJobID = loaded.jobs.first?.id
+        sourcePath = url.path
         lastError = nil
+        persist()
+    }
+
+    func clearBatch() {
+        manifest = nil
+        selectedJobID = nil
+        sourcePath = nil
+        isRunning = false
+        lastError = nil
+        try? persistenceStore.clear()
     }
 
     func skipSelected() {
@@ -47,6 +65,7 @@ final class BatchQueueModel {
         manifest?.jobs[index].errorMessage = nil
         lastError = nil
         isRunning = true
+        persist()
     }
 
     @discardableResult
@@ -71,6 +90,7 @@ final class BatchQueueModel {
             self.manifest?.jobs[index].errorMessage = error.localizedDescription
             lastError = error.localizedDescription
             isRunning = false
+            persist()
             return nil
         }
     }
@@ -79,6 +99,7 @@ final class BatchQueueModel {
         guard let index = manifest?.jobs.firstIndex(where: { $0.id == jobID }) else { return }
         manifest?.jobs[index].status = .ready
         isRunning = false
+        persist()
     }
 
     func generateSelectedWithMockProvider() async {
@@ -88,6 +109,7 @@ final class BatchQueueModel {
 
         isRunning = true
         self.manifest?.jobs[index].status = .generating
+        persist()
         defer { isRunning = false }
 
         do {
@@ -101,6 +123,51 @@ final class BatchQueueModel {
             self.manifest?.jobs[index].status = .failed
             self.manifest?.jobs[index].errorMessage = error.localizedDescription
             lastError = error.localizedDescription
+            persist()
+        }
+    }
+
+    private func restorePersistedSession() {
+        do {
+            guard var session = try persistenceStore.load() else { return }
+
+            // A process exit during generation should never strand a job as "generating".
+            for index in session.manifest.jobs.indices where session.manifest.jobs[index].status == .generating {
+                session.manifest.jobs[index].status = .ready
+            }
+
+            manifest = session.manifest
+            sourcePath = session.sourcePath
+
+            if let selected = session.selectedJobID,
+               session.manifest.jobs.contains(where: { $0.id == selected && $0.status != .completed && $0.status != .skipped }) {
+                selectedJobID = selected
+            } else {
+                selectedJobID = session.manifest.jobs.first {
+                    [.pending, .ready, .failed].contains($0.status)
+                }?.id
+            }
+
+            persist()
+        } catch {
+            lastError = "Could not restore the previous batch: \(error.localizedDescription)"
+        }
+    }
+
+    private func persist() {
+        guard let manifest else {
+            try? persistenceStore.clear()
+            return
+        }
+        let session = BatchSession(
+            manifest: manifest,
+            selectedJobID: selectedJobID,
+            sourcePath: sourcePath
+        )
+        do {
+            try persistenceStore.save(session)
+        } catch {
+            lastError = "Could not save batch progress: \(error.localizedDescription)"
         }
     }
 
@@ -119,5 +186,6 @@ final class BatchQueueModel {
             self.manifest = manifest
             selectedJobID = nil
         }
+        persist()
     }
 }
