@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "project": "AFF Logos",
+  "outputDirectory": "~/Pictures/AFF",
+  "jobs": [
+    {
+      "id": "albany-empire",
+      "filename": "albany-empire.png",
+      "prompt": "Professional American football logo for the Albany Empire. Established major-league identity, historically grounded, navy and gold, strong single-focus symbol, no mockup.",
+      "width": 1024,
+      "height": 1024,
+      "provider": "apple",
+      "status": "pending"
+    },
+    {
+      "id": "buffalo-blizzard",
+      "filename": "buffalo-blizzard.png",
+      "prompt": "Professional American football logo for the Buffalo Blizzard. Charging buffalo shaped by wind and snow, royal blue and silver, mature national sports branding, no mockup.",
+      "width": 1024,
+      "height": 1024,
+      "provider": "apple",
+      "status": "pending"
+    },
+    {
+      "id": "philadelphia-liberty",
+      "filename": "philadelphia-liberty.png",
+      "prompt": "Professional American football logo for Philadelphia with a prominent bell as the single central symbol, established major-league feel, bold but traditional, no mockup.",
+      "width": 1024,
+      "height": 1024,
+      "provider": "apple",
+      "status": "pending"
+    }
+  ]
+}
