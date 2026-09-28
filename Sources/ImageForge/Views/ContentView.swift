@@ -1,9 +1,14 @@
 import SwiftUI
 import UniformTypeIdentifiers
+#if canImport(ImagePlayground)
+import ImagePlayground
+#endif
 
 struct ContentView: View {
     @Environment(BatchQueueModel.self) private var queue
     @State private var importerPresented = false
+    @State private var playgroundPresented = false
+    @State private var playgroundJobID: String?
 
     var body: some View {
         NavigationSplitView {
@@ -87,26 +92,81 @@ struct ContentView: View {
 
                 HStack {
                     Button("Skip") { queue.skipSelected() }
+                        .disabled(queue.isRunning)
                     Spacer()
                     Button("Test Queue With Mock") {
                         Task { await queue.generateSelectedWithMockProvider() }
                     }
                     .disabled(queue.isRunning)
-                    Button("Generate in Image Playground") {
-                        queue.lastError = "Apple Image Playground integration is the next milestone."
-                    }
-                    .buttonStyle(.borderedProminent)
+
+                    appleGenerateButton(for: job)
                 }
             }
             .padding(24)
         } else {
             ContentUnavailableView(
-                "No Batch Loaded",
-                systemImage: "photo.stack",
-                description: Text("Open a JSON manifest to start an image queue.")
+                "Batch Complete",
+                systemImage: "checkmark.circle",
+                description: Text(queue.manifest == nil
+                    ? "Open a JSON manifest to start an image queue."
+                    : "There are no remaining image jobs.")
             )
         }
     }
+
+    @ViewBuilder
+    private func appleGenerateButton(for job: ImageJob) -> some View {
+        #if canImport(ImagePlayground)
+        if #available(macOS 27.0, *) {
+            Button("Generate in Image Playground") {
+                playgroundJobID = job.id
+                queue.beginAppleGeneration(for: job.id)
+                playgroundPresented = true
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(queue.isRunning)
+            .imagePlaygroundSheet(
+                isPresented: $playgroundPresented,
+                concept: job.prompt,
+                sourceImage: nil,
+                onCompletion: { url in
+                    let completedJobID = playgroundJobID ?? job.id
+                    _ = queue.acceptAppleGeneratedImage(url, for: completedJobID)
+                    playgroundJobID = nil
+                },
+                onCancellation: {
+                    let cancelledJobID = playgroundJobID ?? job.id
+                    queue.cancelAppleGeneration(for: cancelledJobID)
+                    playgroundJobID = nil
+                }
+            )
+            .imagePlaygroundOptions(playgroundOptions(for: job))
+            .imagePlaygroundGenerationStyle(
+                .externalProvider,
+                in: [.externalProvider]
+            )
+        } else {
+            Button("Requires macOS 27") {}
+                .disabled(true)
+        }
+        #else
+        Button("Image Playground unavailable") {}
+            .disabled(true)
+        #endif
+    }
+
+    #if canImport(ImagePlayground)
+    @available(macOS 27.0, *)
+    private func playgroundOptions(for job: ImageJob) -> ImagePlaygroundOptions {
+        var options = ImagePlaygroundOptions()
+        if let width = job.width, let height = job.height {
+            options.sizeSpecification = .closest(
+                to: CGSize(width: width, height: height)
+            )
+        }
+        return options
+    }
+    #endif
 
     private func statusIcon(for status: ImageJob.Status) -> some View {
         let name: String = switch status {
