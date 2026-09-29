@@ -8,8 +8,9 @@ struct ImageForgeApp: App {
         WindowGroup {
             ContentView()
                 .environment(queue)
-                .frame(minWidth: 900, minHeight: 560)
+                .frame(minWidth: 760, minHeight: 520)
         }
+        .defaultSize(width: 1080, height: 700)
         .windowResizability(.contentMinSize)
     }
 }
