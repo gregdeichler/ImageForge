@@ -1,5 +1,8 @@
+import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
+import UniformTypeIdentifiers
 @testable import ImageForge
 
 @MainActor
@@ -43,7 +46,7 @@ private func makeQueue(in root: URL) -> BatchQueueModel {
     defer { try? FileManager.default.removeItem(at: root) }
 
     let temporaryImage = root.appendingPathComponent("generated.png")
-    try Data("generated".utf8).write(to: temporaryImage)
+    try writeOnePixelPNG(to: temporaryImage)
 
     let output = root.appendingPathComponent("output", isDirectory: true)
 
@@ -125,4 +128,37 @@ private func makeQueue(in root: URL) -> BatchQueueModel {
     try queue.loadManifest(from: manifestURL)
 
     #expect(queue.referenceImageURL(for: queue.jobs[0]) == references.appendingPathComponent("master.png"))
+}
+
+private func writeOnePixelPNG(to url: URL) throws {
+    var pixel: [UInt8] = [255, 0, 0, 255]
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+    guard let context = CGContext(
+        data: &pixel,
+        width: 1,
+        height: 1,
+        bitsPerComponent: 8,
+        bytesPerRow: 4,
+        space: colorSpace,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ),
+    let image = context.makeImage(),
+    let destination = CGImageDestinationCreateWithURL(
+        url as CFURL,
+        UTType.png.identifier as CFString,
+        1,
+        nil
+    ) else {
+        throw TestImageError.creationFailed
+    }
+
+    CGImageDestinationAddImage(destination, image, nil)
+    guard CGImageDestinationFinalize(destination) else {
+        throw TestImageError.creationFailed
+    }
+}
+
+private enum TestImageError: Error {
+    case creationFailed
 }
