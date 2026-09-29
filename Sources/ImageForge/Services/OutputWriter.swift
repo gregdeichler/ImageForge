@@ -31,14 +31,19 @@ struct OutputWriter {
             try FileManager.default.removeItem(at: destination)
         }
 
-        if let destinationType = destinationType(for: destination),
-           let source = CGImageSourceCreateWithURL(generated.temporaryURL as CFURL, nil) {
-            guard let imageDestination = CGImageDestinationCreateWithURL(
-                destination as CFURL,
-                destinationType.identifier as CFString,
-                1,
-                nil
-            ) else {
+        if job.provider == .mock {
+            try FileManager.default.copyItem(at: generated.temporaryURL, to: destination)
+            return destination
+        }
+
+        if let destinationType = destinationType(for: destination) {
+            guard let source = CGImageSourceCreateWithURL(generated.temporaryURL as CFURL, nil),
+                  let imageDestination = CGImageDestinationCreateWithURL(
+                    destination as CFURL,
+                    destinationType.identifier as CFString,
+                    1,
+                    nil
+                  ) else {
                 throw OutputWriterError.imageEncodingFailed(job.filename)
             }
 
@@ -51,8 +56,6 @@ struct OutputWriter {
                 throw OutputWriterError.imageEncodingFailed(job.filename)
             }
         } else {
-            // Non-image providers (notably the mock provider) may intentionally return
-            // arbitrary files. Preserve the existing behavior for those outputs.
             try FileManager.default.copyItem(at: generated.temporaryURL, to: destination)
         }
 
