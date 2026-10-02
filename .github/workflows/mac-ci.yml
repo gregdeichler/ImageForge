@@ -2,7 +2,7 @@ name: macOS CI
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**", "docs/**"]
+    branches: [main, "feat/**", "fix/**", "docs/**", "release/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
