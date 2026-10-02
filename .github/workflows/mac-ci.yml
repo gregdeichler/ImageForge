@@ -2,7 +2,7 @@ name: macOS CI
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**"]
+    branches: [main, "feat/**", "fix/**", "docs/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -35,43 +35,9 @@ jobs:
 
       - name: Build release app
         if: github.event_name != 'pull_request'
-        run: |
-          set -euo pipefail
-          swift build -c release
-
-          APP="dist/ImageForge.app"
-          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-          cp ".build/release/ImageForge" "$APP/Contents/MacOS/ImageForge"
-
-          cat > "$APP/Contents/Info.plist" <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleName</key>
-            <string>ImageForge</string>
-            <key>CFBundleDisplayName</key>
-            <string>ImageForge</string>
-            <key>CFBundleIdentifier</key>
-            <string>com.thedeichlers.imageforge</string>
-            <key>CFBundleVersion</key>
-            <string>${{ github.run_number }}</string>
-            <key>CFBundleShortVersionString</key>
-            <string>0.1</string>
-            <key>CFBundlePackageType</key>
-            <string>APPL</string>
-            <key>CFBundleExecutable</key>
-            <string>ImageForge</string>
-            <key>LSMinimumSystemVersion</key>
-            <string>15.0</string>
-            <key>NSHighResolutionCapable</key>
-            <true/>
-          </dict>
-          </plist>
-          PLIST
-
-          /usr/bin/codesign --force --deep --sign - "$APP"
-          /usr/bin/ditto -c -k --keepParent "$APP" "dist/ImageForge-macOS-arm64.zip"
+        env:
+          IMAGEFORGE_BUILD_NUMBER: ${{ github.run_number }}
+        run: bash scripts/package-macos.sh
 
       - name: Upload downloadable app
         if: github.event_name != 'pull_request'

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "project": "ImageForge Example",
+  "outputDirectory": "~/Pictures/ImageForge/Example",
+  "jobs": [
+    {
+      "id": "mountain-poster",
+      "filename": "mountain-poster.png",
+      "prompt": "A clean editorial illustration of a mountain range at sunrise, centered composition, bold shapes, restrained detail.",
+      "negativePrompt": "text, watermark, frame, mockup",
+      "assetType": "illustration",
+      "variant": "primary",
+      "width": 2048,
+      "height": 2048,
+      "provider": "apple",
+      "status": "pending",
+      "tags": ["example", "illustration"]
+    },
+    {
+      "id": "mountain-poster-variant",
+      "filename": "mountain-poster-variant.png",
+      "prompt": "Create a simplified alternate treatment of the approved mountain artwork with fewer internal details.",
+      "negativePrompt": "text, watermark, frame, mockup",
+      "assetType": "illustration",
+      "variant": "simplified",
+      "referenceImage": "references/mountain-master.png",
+      "width": 2048,
+      "height": 2048,
+      "provider": "apple",
+      "status": "pending",
+      "tags": ["example", "illustration", "variant"]
+    }
+  ]
+}

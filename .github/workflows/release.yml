@@ -1,0 +1,74 @@
+name: Publish Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - VERSION
+      - RELEASE_NOTES.md
+      - .github/workflows/release.yml
+      - scripts/package-macos.sh
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: imageforge-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: [self-hosted, macOS, ARM64, imageforge]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and package
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          IMAGEFORGE_VERSION: ${{ steps.version.outputs.version }}
+          IMAGEFORGE_BUILD_NUMBER: ${{ github.run_number }}
+        run: bash scripts/package-macos.sh
+
+      - name: Test
+        if: steps.existing.outputs.exists != 'true'
+        run: swift test -v
+
+      - name: Publish GitHub Release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$TAG"             "dist/ImageForge-macOS-arm64.zip#ImageForge macOS Apple Silicon"             --target "$GITHUB_SHA"             --title "ImageForge $TAG"             --notes-file RELEASE_NOTES.md
+
+      - name: Release already exists
+        if: steps.existing.outputs.exists == 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: echo "Release $TAG already exists; no changes made."

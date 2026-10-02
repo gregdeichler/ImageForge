@@ -1,103 +1,212 @@
 # ImageForge
 
-ImageForge is a native macOS batch image-generation manager built around zero-incremental-cost workflows first.
+ImageForge is a native macOS batch image-generation manager built around reproducible JSON jobs and zero-incremental-cost workflows first.
 
-It loads a manifest of image jobs, walks the queue, pre-fills Apple's Image Playground external-provider sheet, saves accepted outputs under deterministic filenames, and resumes cleanly after interruptions. Local/unattended providers can be added behind the same queue model later.
+It loads a JSON manifest, walks an ordered queue, pre-fills Apple's Image Playground external-provider sheet, saves accepted outputs under deterministic filenames, and persists progress so an interrupted batch can resume cleanly.
 
-## Current status
+[Download the latest release](https://github.com/gregdeichler/ImageForge/releases/latest) · [Manifest documentation](docs/MANIFEST.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](ROADMAP.md)
 
-- Native SwiftUI queue UI
-- JSON manifest import
-- Manifest validation before a batch is accepted
-- Deterministic output paths
-- Atomic output replacement so a failed encode cannot destroy an existing asset
-- Pause/cancel/skip/retry-friendly queue state
-- Persistent current-batch session in Application Support
-- Automatic recovery of jobs interrupted while generating
-- Apple Image Playground integration on macOS 27
-- External-provider style support
-- Requested image dimensions through ImagePlaygroundOptions
-- Optional reference-image input
-- Mock provider and tests
-- Self-hosted Apple-silicon CI
+## What it does
 
-Apple's external-provider flow is intentionally interactive: ImageForge can pre-fill the job, dimensions, and optional reference image, then save the accepted result and advance the queue. It does not attempt to automate clicks inside Apple's system sheet.
+- Native SwiftUI macOS interface.
+- JSON is the native batch format.
+- Validates manifests before accepting a batch.
+- Persistent queue state in Application Support.
+- Recovers interrupted `generating` jobs as `ready`.
+- Supports skip, retry, cancel, and resume workflows.
+- Integrates with Apple Image Playground on macOS 27.
+- Seeds prompt, requested dimensions, and an optional reference image.
+- Uses deterministic filenames and output directories.
+- Transcodes provider output to PNG, JPEG, HEIC/HEIF, or TIFF.
+- Writes replacements atomically so a failed encode cannot destroy an existing good asset.
+- Keeps app-level import/persistence errors separate from per-job generation errors.
+- Includes a mock unattended provider for testing and a provider contract for future local generation.
+- Builds and tests on a self-hosted Apple Silicon macOS runner.
+- Publishes packaged `ImageForge.app` ZIPs to GitHub Releases.
 
-Apple documents image size as a requested/closest size, not a guarantee of an exact output pixel dimension.
+Apple's external-provider flow is intentionally interactive. ImageForge prepares the job and presents Apple's provider-owned sheet; it does not automate clicks inside that system UI.
 
-## Manifest
+## Download
 
-See `examples/aff-sample.json`.
+Use the **Releases** page for normal installs:
 
-Schema version 2 adds production metadata while ImageForge continues to decode schema version 1 manifests.
+https://github.com/gregdeichler/ImageForge/releases
+
+Download `ImageForge-macOS-arm64.zip`, unzip it, and move `ImageForge.app` wherever you keep applications.
+
+The current release artifact is built for Apple Silicon and is ad-hoc signed rather than Developer ID notarized. macOS may require Control-clicking the app and choosing **Open** on first launch.
+
+### Requirements
+
+- Apple Silicon Mac for the prebuilt release artifact.
+- macOS 27 for Apple Image Playground generation.
+- The Swift package has a macOS 15 deployment target so non-Image-Playground queue code and tests remain portable.
+
+## Quick start
+
+1. Download and open ImageForge.
+2. Copy `examples/example-batch.json` somewhere you can edit it.
+3. Change `project`, `outputDirectory`, prompts, and filenames.
+4. In ImageForge, choose **Open Batch**.
+5. Select a job and choose **Generate in Image Playground**.
+6. Accept the generated image in Apple's sheet.
+7. ImageForge saves it using the manifest filename and advances to the next actionable job.
+
+A production-oriented AFF example is also included at `examples/aff-sample.json`.
+
+## JSON manifest
+
+JSON is a first-class format in ImageForge, not an interchange format layered on top of another project file.
+
+Minimal schema-v2 example:
 
 ```json
 {
   "schemaVersion": 2,
-  "project": "AFF Logos — Federal East Primaries",
-  "outputDirectory": "~/Pictures/AFF/primary",
+  "project": "Example Project",
+  "outputDirectory": "~/Pictures/ImageForge/Example",
   "jobs": [
     {
-      "id": "philadelphia-independence-primary",
-      "team": "Philadelphia Independence",
-      "assetType": "logo",
-      "variant": "primary-full-color",
-      "filename": "philadelphia-independence-primary.png",
-      "prompt": "Professional major-league American football primary logo. One bold broken bell as the sole dominant object...",
-      "negativePrompt": "text, letters, footballs, shields, mockups, gradients, chrome, 3D",
+      "id": "hero-image",
+      "filename": "hero-image.png",
+      "prompt": "A bold editorial illustration with a clean central silhouette.",
+      "negativePrompt": "text, watermark, mockup",
       "width": 2048,
       "height": 2048,
       "provider": "apple",
       "status": "pending",
-      "tags": ["aff", "federal-east", "primary"]
+      "tags": ["example"]
     }
   ]
 }
 ```
 
-Optional `referenceImage` paths are resolved relative to the manifest file (or may be absolute paths). This is intended for derivative assets after a master mark has been approved.
+See **[docs/MANIFEST.md](docs/MANIFEST.md)** for every field, supported provider/status value, validation rule, reference-image behavior, and output format.
 
-### Validation
+### Supported image outputs
 
-ImageForge rejects a manifest before queueing when it contains:
+Real image providers may write:
 
-- unsupported schema versions
-- empty project/output directory
-- no jobs
-- duplicate job IDs
-- duplicate output filenames (case-insensitive)
-- blank prompts
-- path-like/unsafe output filenames
-- only one of width/height
-- non-positive dimensions
-- unsupported image output extensions for real image providers
+- PNG
+- JPEG
+- HEIC / HEIF
+- TIFF
 
-Supported image outputs are PNG, JPEG, HEIC/HEIF, and TIFF. ImageForge transcodes provider output into the requested file type rather than merely renaming provider bytes.
+ImageForge transcodes the provider's temporary result into the file type requested by the manifest filename. It does not merely rename provider bytes.
 
-## AFF workflow
+## Reference images
 
-For the AFF branding project, use ImageForge as a production pipeline rather than asking the generator to redesign each franchise on every pass:
+A job can provide `referenceImage` as an absolute path, a `~` path, or a path relative to the JSON manifest:
 
-1. Generate the 32 locked full-color primary concepts.
-2. Review and approve one master per team.
-3. Use the approved master as `referenceImage` for one-color and helmet variants.
-4. Resize approved artwork for 256/64/32 icons instead of regenerating those icons independently.
+```json
+{
+  "id": "approved-master-variant",
+  "filename": "approved-master-variant.png",
+  "prompt": "Create a simplified alternate treatment of the approved artwork.",
+  "referenceImage": "references/approved-master.png",
+  "provider": "apple",
+  "status": "pending"
+}
+```
 
-The included sample starts with the four locked Federal East concepts so the prompt structure can be validated before a full 32-team run.
+This supports workflows where an approved master is used to generate controlled derivative assets.
 
-## Development
+## Queue behavior
 
-Open the package in Xcode and run the `ImageForge` executable target.
+The normal state progression is:
+
+```text
+pending → ready → generating → completed
+```
+
+Generation errors become `failed` and remain retryable. A user can mark an actionable job `skipped`. Completed and skipped jobs both count toward finished batch progress, while remaining distinguishable in the UI.
+
+If the app exits while a job is `generating`, that job is restored as `ready` on next launch.
+
+## Output safety
+
+ImageForge does not delete an existing destination before proving the replacement can be written.
+
+For real image providers it:
+
+1. decodes the provider result,
+2. writes the requested format to a temporary sibling file,
+3. finalizes the image,
+4. replaces the destination only after successful encoding.
+
+If conversion fails, an existing output remains intact.
+
+## Architecture
+
+The core pieces are intentionally small:
+
+- `BatchManifest` / `ImageJob` — JSON-facing data model and validation.
+- `BatchQueueModel` — state transitions, selection, progress, retry/skip/cancel, and persistence coordination.
+- `BatchPersistenceStore` — active-session storage and recovery.
+- `OutputWriter` — deterministic paths, transcoding, and atomic output replacement.
+- Apple Image Playground integration — interactive SwiftUI provider path.
+- `ImageGenerationProvider` — contract reserved for unattended providers such as the mock provider and future local backends.
+
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for more detail.
+
+## Build from source
+
+Open the package in Xcode, or use Swift Package Manager:
 
 ```bash
 swift build
 swift test
 ```
 
-The package minimum remains conservative so the queue engine and tests stay portable. Image Playground features are isolated behind framework and macOS 27 availability checks.
+To build the same packaged application used by CI and Releases:
 
-## Provider architecture
+```bash
+bash scripts/package-macos.sh
+```
 
-Apple's Image Playground path is UI-driven and lives in SwiftUI/BatchQueueModel. The `ImageGenerationProvider` protocol is reserved for providers that can generate without presenting provider-owned UI, such as the mock provider and future local providers.
+The result is:
 
-This distinction avoids pretending Apple's interactive sheet is an unattended provider.
+```text
+dist/ImageForge.app
+dist/ImageForge-macOS-arm64.zip
+```
+
+## Releases
+
+The repository stores the public version in `VERSION`.
+
+When a version/release change lands on `main`, the release workflow:
+
+1. builds the release executable,
+2. runs the test suite,
+3. packages and verifies `ImageForge.app`,
+4. ad-hoc signs the app,
+5. creates the matching `vX.Y.Z` GitHub Release,
+6. attaches `ImageForge-macOS-arm64.zip`.
+
+Release notes live in `RELEASE_NOTES.md`.
+
+## CI
+
+`.github/workflows/mac-ci.yml` runs build and tests on the self-hosted Apple Silicon runner. Non-PR builds also create a downloadable Actions artifact.
+
+`.github/workflows/release.yml` is responsible for durable GitHub Release artifacts.
+
+## Current limitations
+
+- Apple Image Playground generation remains interactive by design.
+- Requested Image Playground dimensions are a closest-size request rather than a guarantee of exact provider output dimensions.
+- The public artifact is not Developer ID notarized.
+- A future sandboxed distribution will require persisted security-scoped bookmarks for manifests, reference images, and output directories.
+- The local unattended generation provider is not implemented yet.
+
+See **[ROADMAP.md](ROADMAP.md)** for planned work.
+
+## Project examples
+
+- `examples/example-batch.json` — generic schema-v2 starter manifest.
+- `examples/aff-sample.json` — production-oriented multi-job branding example.
+
+## Repository status
+
+This repository is public. No open-source license has been declared yet, so public visibility should not be interpreted as granting rights beyond GitHub's normal repository-viewing and forking functionality.
