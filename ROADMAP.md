@@ -27,8 +27,12 @@
 - [x] Validate duplicate IDs/output filenames
 - [x] Validate dimensions and safe output filenames
 - [x] Support optional reference-image paths
+- [x] Atomic output replacement that preserves the previous asset if encoding fails
+- [x] Visible app-level persistence/import errors
+- [x] Enforce supported output image formats
 - [ ] Prompt hash + generation metadata sidecars
 - [ ] Explicit output collision policy (overwrite / keep / version)
+- [ ] Security-scoped bookmarks for sandboxed manifest/reference/output access
 
 ## Milestone 3 — Batch authoring
 - [ ] Create/edit manifests in the app
