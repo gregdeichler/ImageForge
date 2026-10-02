@@ -38,6 +38,10 @@ A generation failure becomes `failed`, which is actionable and retryable. A user
 
 Process interruption while a job is `generating` does not strand the queue: persisted `generating` state is restored as `ready`.
 
+## Branding
+
+`assets/AppIcon.png` is the canonical ImageForge artwork. Packaging derives the macOS iconset and `AppIcon.icns` from that checked-in source so release builds and repository branding stay synchronized.
+
 ## Distribution
 
 CI builds and tests on a self-hosted Apple Silicon Mac runner. Public releases package the release executable into `ImageForge.app`, ad-hoc sign it, zip it, and attach it to a GitHub Release.
