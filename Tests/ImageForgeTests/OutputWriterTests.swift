@@ -109,3 +109,43 @@ private func writeOnePixelImage(to url: URL, type: UTType) throws {
 private enum TestImageError: Error {
     case creationFailed
 }
+
+
+@Test func outputWriterPreservesExistingDestinationWhenEncodingFails() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ImageForgeAtomicWriter-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let destination = root.appendingPathComponent("logo.png")
+    let original = Data("known-good-output".utf8)
+    try original.write(to: destination)
+
+    let invalidSource = root.appendingPathComponent("invalid-image.bin")
+    try Data("not-an-image".utf8).write(to: invalidSource)
+
+    let manifest = BatchManifest(
+        schemaVersion: 2,
+        project: "Atomic",
+        outputDirectory: root.path,
+        jobs: [
+            ImageJob(
+                id: "logo",
+                filename: "logo.png",
+                prompt: "logo",
+                provider: .apple,
+                status: .ready
+            )
+        ]
+    )
+
+    #expect(throws: OutputWriterError.self) {
+        try OutputWriter().save(
+            GeneratedImage(temporaryURL: invalidSource),
+            for: manifest.jobs[0],
+            manifest: manifest
+        )
+    }
+
+    #expect(try Data(contentsOf: destination) == original)
+}

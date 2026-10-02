@@ -10,6 +10,7 @@ It loads a manifest of image jobs, walks the queue, pre-fills Apple's Image Play
 - JSON manifest import
 - Manifest validation before a batch is accepted
 - Deterministic output paths
+- Atomic output replacement so a failed encode cannot destroy an existing asset
 - Pause/cancel/skip/retry-friendly queue state
 - Persistent current-batch session in Application Support
 - Automatic recovery of jobs interrupted while generating
@@ -69,6 +70,9 @@ ImageForge rejects a manifest before queueing when it contains:
 - path-like/unsafe output filenames
 - only one of width/height
 - non-positive dimensions
+- unsupported image output extensions for real image providers
+
+Supported image outputs are PNG, JPEG, HEIC/HEIF, and TIFF. ImageForge transcodes provider output into the requested file type rather than merely renaming provider bytes.
 
 ## AFF workflow
 

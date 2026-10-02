@@ -64,6 +64,16 @@ struct BatchManifest: Codable, Sendable {
                 throw BatchManifestValidationError.duplicateFilename(filename)
             }
 
+            if job.provider != .mock {
+                let ext = NSString(string: filename).pathExtension.lowercased()
+                guard OutputWriter.supportedImageExtensions.contains(ext) else {
+                    throw BatchManifestValidationError.invalidJob(
+                        job.id,
+                        "Unsupported image output format '.\(ext)'. Use PNG, JPEG, HEIC/HEIF, or TIFF."
+                    )
+                }
+            }
+
             guard !job.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw BatchManifestValidationError.invalidJob(job.id, "Prompt must not be empty.")
             }

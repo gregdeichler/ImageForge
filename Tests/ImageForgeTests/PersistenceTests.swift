@@ -60,3 +60,59 @@ import Testing
     #expect(queue.manifest == nil)
     #expect(!FileManager.default.fileExists(atPath: stateURL.path))
 }
+
+
+private enum IntentionalPersistenceError: Error {
+    case expected
+}
+
+private struct ClearFailingPersistenceStore: BatchPersistenceStoring {
+    func load() throws -> BatchSession? { nil }
+    func save(_ session: BatchSession) throws {}
+    func clear() throws { throw IntentionalPersistenceError.expected }
+}
+
+private struct SaveFailingPersistenceStore: BatchPersistenceStoring {
+    func load() throws -> BatchSession? { nil }
+    func save(_ session: BatchSession) throws { throw IntentionalPersistenceError.expected }
+    func clear() throws {}
+}
+
+@MainActor
+@Test func clearFailureKeepsCurrentBatchAndSurfacesError() {
+    let queue = BatchQueueModel(persistenceStore: ClearFailingPersistenceStore())
+    queue.manifest = BatchManifest(
+        schemaVersion: 2,
+        project: "Keep Me",
+        outputDirectory: "/tmp",
+        jobs: [
+            ImageJob(id: "one", filename: "one.png", prompt: "one")
+        ]
+    )
+    queue.selectedJobID = "one"
+
+    let cleared = queue.clearBatch()
+
+    #expect(!cleared)
+    #expect(queue.manifest?.project == "Keep Me")
+    #expect(queue.selectedJobID == "one")
+    #expect(queue.appError?.contains("Could not clear saved batch progress") == true)
+}
+
+@MainActor
+@Test func persistenceSaveFailureIsVisible() {
+    let queue = BatchQueueModel(persistenceStore: SaveFailingPersistenceStore())
+    queue.manifest = BatchManifest(
+        schemaVersion: 2,
+        project: "Save Failure",
+        outputDirectory: "/tmp",
+        jobs: [
+            ImageJob(id: "one", filename: "one.png", prompt: "one", status: .ready)
+        ]
+    )
+    queue.selectedJobID = "one"
+
+    queue.beginAppleGeneration(for: "one")
+
+    #expect(queue.appError?.contains("Could not save batch progress") == true)
+}

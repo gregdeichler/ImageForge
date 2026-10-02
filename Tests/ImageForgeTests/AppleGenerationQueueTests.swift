@@ -162,3 +162,27 @@ private func writeOnePixelPNG(to url: URL) throws {
 private enum TestImageError: Error {
     case creationFailed
 }
+
+
+@MainActor
+@Test func finishedProgressIncludesSkippedJobs() {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ImageForgeProgress-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let queue = makeQueue(in: root)
+    queue.manifest = BatchManifest(
+        schemaVersion: 2,
+        project: "Progress",
+        outputDirectory: root.path,
+        jobs: [
+            ImageJob(id: "done", filename: "done.png", prompt: "done", status: .completed),
+            ImageJob(id: "skip", filename: "skip.png", prompt: "skip", status: .skipped),
+            ImageJob(id: "next", filename: "next.png", prompt: "next", status: .ready)
+        ]
+    )
+
+    #expect(queue.completedCount == 1)
+    #expect(queue.skippedCount == 1)
+    #expect(queue.finishedCount == 2)
+}

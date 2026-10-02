@@ -20,7 +20,13 @@ enum BatchPersistenceError: LocalizedError {
     }
 }
 
-struct BatchPersistenceStore: Sendable {
+protocol BatchPersistenceStoring: Sendable {
+    func load() throws -> BatchSession?
+    func save(_ session: BatchSession) throws
+    func clear() throws
+}
+
+struct BatchPersistenceStore: BatchPersistenceStoring, Sendable {
     let stateURL: URL
 
     static var live: BatchPersistenceStore {
