@@ -8,29 +8,29 @@ swift build -c release
 
 APP="dist/ImageForge.app"
 ZIP="dist/ImageForge-macOS-arm64.zip"
+ICON_SOURCE="assets/AppIcon.png"
+ICON_MASTER="dist/AppIcon-1024.png"
+ICONSET="dist/AppIcon.iconset"
 
-rm -rf "$APP" "$ZIP"
+rm -rf "$APP" "$ZIP" "$ICONSET" "$ICON_MASTER"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp ".build/release/ImageForge" "$APP/Contents/MacOS/ImageForge"
 
-# Render the project-owned vector icon, generate every macOS iconset size,
-# and compile it into the .icns bundled with the app.
-ICON_PNG="dist/AppIcon-1024.png"
-ICONSET="dist/AppIcon.iconset"
-swift scripts/render-app-icon.swift "$ICON_PNG"
-rm -rf "$ICONSET"
+# Use the checked-in canonical ImageForge artwork for both the app and repo branding.
+# Scale once to a 1024px master, then generate the complete macOS iconset.
+/usr/bin/sips -z 1024 1024 "$ICON_SOURCE" --out "$ICON_MASTER" >/dev/null
 mkdir -p "$ICONSET"
 
-/usr/bin/sips -z 16 16     "$ICON_PNG" --out "$ICONSET/icon_16x16.png" >/dev/null
-/usr/bin/sips -z 32 32     "$ICON_PNG" --out "$ICONSET/icon_16x16@2x.png" >/dev/null
-/usr/bin/sips -z 32 32     "$ICON_PNG" --out "$ICONSET/icon_32x32.png" >/dev/null
-/usr/bin/sips -z 64 64     "$ICON_PNG" --out "$ICONSET/icon_32x32@2x.png" >/dev/null
-/usr/bin/sips -z 128 128   "$ICON_PNG" --out "$ICONSET/icon_128x128.png" >/dev/null
-/usr/bin/sips -z 256 256   "$ICON_PNG" --out "$ICONSET/icon_128x128@2x.png" >/dev/null
-/usr/bin/sips -z 256 256   "$ICON_PNG" --out "$ICONSET/icon_256x256.png" >/dev/null
-/usr/bin/sips -z 512 512   "$ICON_PNG" --out "$ICONSET/icon_256x256@2x.png" >/dev/null
-/usr/bin/sips -z 512 512   "$ICON_PNG" --out "$ICONSET/icon_512x512.png" >/dev/null
-cp "$ICON_PNG" "$ICONSET/icon_512x512@2x.png"
+/usr/bin/sips -z 16 16     "$ICON_MASTER" --out "$ICONSET/icon_16x16.png" >/dev/null
+/usr/bin/sips -z 32 32     "$ICON_MASTER" --out "$ICONSET/icon_16x16@2x.png" >/dev/null
+/usr/bin/sips -z 32 32     "$ICON_MASTER" --out "$ICONSET/icon_32x32.png" >/dev/null
+/usr/bin/sips -z 64 64     "$ICON_MASTER" --out "$ICONSET/icon_32x32@2x.png" >/dev/null
+/usr/bin/sips -z 128 128   "$ICON_MASTER" --out "$ICONSET/icon_128x128.png" >/dev/null
+/usr/bin/sips -z 256 256   "$ICON_MASTER" --out "$ICONSET/icon_128x128@2x.png" >/dev/null
+/usr/bin/sips -z 256 256   "$ICON_MASTER" --out "$ICONSET/icon_256x256.png" >/dev/null
+/usr/bin/sips -z 512 512   "$ICON_MASTER" --out "$ICONSET/icon_256x256@2x.png" >/dev/null
+/usr/bin/sips -z 512 512   "$ICON_MASTER" --out "$ICONSET/icon_512x512.png" >/dev/null
+cp "$ICON_MASTER" "$ICONSET/icon_512x512@2x.png"
 
 /usr/bin/iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 

@@ -1,6 +1,21 @@
-# ImageForge
+<p align="center">
+  <img src="assets/AppIcon.png" alt="ImageForge app icon" width="180">
+</p>
 
-ImageForge is a native macOS batch image-generation manager built around reproducible JSON jobs and zero-incremental-cost workflows first.
+<h1 align="center">ImageForge</h1>
+
+<p align="center">
+  Native macOS batch image generation from reproducible JSON manifests.
+</p>
+
+<p align="center">
+  <a href="https://github.com/gregdeichler/ImageForge/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/gregdeichler/ImageForge"></a>
+  <a href="https://github.com/gregdeichler/ImageForge/actions/workflows/mac-ci.yml"><img alt="macOS CI" src="https://github.com/gregdeichler/ImageForge/actions/workflows/mac-ci.yml/badge.svg"></a>
+  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS-111111?logo=apple">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
+</p>
+
+ImageForge is a native macOS batch image-generation manager built around reproducible JSON jobs and zero-incremental-cost workflows first. The checked-in `assets/AppIcon.png` is the canonical project artwork used by the packaged Mac app and this repository.
 
 It loads a JSON manifest, walks an ordered queue, pre-fills Apple's Image Playground external-provider sheet, saves accepted outputs under deterministic filenames, and persists progress so an interrupted batch can resume cleanly.
 
@@ -28,7 +43,7 @@ Apple's external-provider flow is intentionally interactive. ImageForge prepares
 
 ## Download
 
-Use the **Releases** page for normal installs:
+**Current public release: v0.1.1.** Use the **Releases** page for normal installs:
 
 https://github.com/gregdeichler/ImageForge/releases
 
@@ -206,6 +221,10 @@ See **[ROADMAP.md](ROADMAP.md)** for planned work.
 
 - `examples/example-batch.json` — generic schema-v2 starter manifest.
 - `examples/aff-sample.json` — production-oriented multi-job branding example.
+
+## Branding
+
+The canonical project artwork is `assets/AppIcon.png`. The release packaging step converts that image into the macOS `AppIcon.icns` bundled with `ImageForge.app`, so the application and public repository use the same identity.
 
 ## Repository status
 
