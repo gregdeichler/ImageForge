@@ -114,3 +114,24 @@ import Testing
     }
     #expect(partialSizeThrew)
 }
+
+
+@Test func rejectsUnsupportedImageOutputExtension() {
+    let manifest = BatchManifest(
+        schemaVersion: 2,
+        project: "Formats",
+        outputDirectory: "/tmp",
+        jobs: [
+            ImageJob(
+                id: "one",
+                filename: "one.webp",
+                prompt: "one",
+                provider: .apple
+            )
+        ]
+    )
+
+    #expect(throws: BatchManifestValidationError.self) {
+        try manifest.validate()
+    }
+}
