@@ -29,8 +29,21 @@ struct ContentView: View {
                     try queue.loadManifest(from: url)
                 }
             } catch {
-                queue.lastError = error.localizedDescription
+                queue.reportAppError(error.localizedDescription)
             }
+        }
+        .alert(
+            "ImageForge",
+            isPresented: Binding(
+                get: { queue.appError != nil },
+                set: { if !$0 { queue.dismissAppError() } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                queue.dismissAppError()
+            }
+        } message: {
+            Text(queue.appError ?? "")
         }
     }
 
@@ -82,11 +95,11 @@ struct ContentView: View {
 
             if let manifest = queue.manifest {
                 ProgressView(
-                    value: Double(queue.completedCount),
+                    value: Double(queue.finishedCount),
                     total: Double(max(manifest.jobs.count, 1))
                 )
 
-                Text("\(queue.completedCount) of \(manifest.jobs.count) complete")
+                Text(progressSummary(for: manifest))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -110,7 +123,7 @@ struct ContentView: View {
 
             if queue.manifest != nil {
                 Button(role: .destructive) {
-                    queue.clearBatch()
+                    _ = queue.clearBatch()
                 } label: {
                     Label("Clear", systemImage: "xmark.circle")
                 }
@@ -160,6 +173,15 @@ struct ContentView: View {
                 description: Text("There are no remaining image jobs.")
             )
         }
+    }
+
+
+    private func progressSummary(for manifest: BatchManifest) -> String {
+        let total = manifest.jobs.count
+        if queue.skippedCount > 0 {
+            return "\(queue.finishedCount) of \(total) finished • \(queue.completedCount) complete • \(queue.skippedCount) skipped"
+        }
+        return "\(queue.completedCount) of \(total) complete"
     }
 
     private func jobHeader(_ job: ImageJob) -> some View {
@@ -244,7 +266,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private func errorRow(_ job: ImageJob) -> some View {
-        if let error = job.errorMessage ?? queue.lastError {
+        if let error = job.errorMessage {
             Label(error, systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
                 .font(.callout)
